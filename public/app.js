@@ -19,6 +19,8 @@ function openWidget() {
   widgetOpen = true;
   document.getElementById('chat-widget').classList.remove('hidden');
   document.getElementById('chat-launcher').classList.add('open');
+  syncMobileViewport();
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncMobileViewport);
   if (!userProfile) {
     setTimeout(() => document.getElementById('pc-name')?.focus(), 120);
   } else {
@@ -28,8 +30,19 @@ function openWidget() {
 
 function closeWidget() {
   widgetOpen = false;
-  document.getElementById('chat-widget').classList.add('hidden');
+  const widget = document.getElementById('chat-widget');
+  widget.classList.add('hidden');
+  widget.style.height = '';
   document.getElementById('chat-launcher').classList.remove('open');
+  if (window.visualViewport) window.visualViewport.removeEventListener('resize', syncMobileViewport);
+}
+
+function syncMobileViewport() {
+  if (!window.visualViewport || window.innerWidth > 480) return;
+  const widget = document.getElementById('chat-widget');
+  if (!widget || widget.classList.contains('hidden')) return;
+  widget.style.height = window.visualViewport.height + 'px';
+  widget.style.top = window.visualViewport.offsetTop + 'px';
 }
 
 // ── Training Mode State ──
@@ -302,6 +315,13 @@ async function handleUserMessage(text) {
     setTimeout(() => showDemoForm(true), 250);
     return;
   }
+  if (demoBooked && bookedDemoDetails && isDemoStatusQuery(text)) {
+    appendBotMessage(
+      `Yes, your demo is confirmed for ${escapeHtml(bookedDemoDetails.date)} at ${escapeHtml(bookedDemoDetails.time)}. Our team will reach out to you shortly.`,
+      ['Change date/time', 'What will be covered?', 'Something else']
+    );
+    return;
+  }
   if (isDemoIntent(text)) {
     if (demoBooked && bookedDemoDetails) {
       appendBotMessage(
@@ -321,6 +341,10 @@ async function handleUserMessage(text) {
 
 function isDemoIntent(text) {
   return /\b(book|schedule|arrange|need|want|request)\b.*\b(demo|walkthrough|trial)\b|\b(demo|walkthrough)\b.*\b(book|schedule|arrange|request)\b/i.test(text);
+}
+
+function isDemoStatusQuery(text) {
+  return /\b(is|was|has|did|have)\b.{0,30}\b(demo|appointment|booking)\b|\b(demo|appointment|booking)\b.{0,30}\b(scheduled|booked|confirmed|done|set|happen|still|or not)\b|\b(my demo|my appointment|demo status|booking status)\b/i.test(text);
 }
 
 function isRescheduleIntent(text) {
@@ -434,7 +458,9 @@ async function streamBotReply() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages,
-        userContext: userProfile || null,
+        userContext: userProfile
+          ? { ...userProfile, demoBooked: demoBooked || false, bookedDemoDetails: bookedDemoDetails || null }
+          : null,
         sessionId: SESSION_ID
       })
     });

@@ -281,6 +281,19 @@ When prospects mention ClearTax, Winman, GEN TDS, CompuTax, Webtel, Tally, or ot
 ${salesKB}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## CONVERSATION STATE — READ BEFORE EVERY REPLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Always scan the full conversation history before replying. The history is ground truth. Never contradict or redo something that is already done:
+
+- DEMO ALREADY BOOKED: If the history contains a demo booking confirmation, NEVER output COLLECT_DEMO_INFO or SHOW_DEMO_CARD. If the user asks about their demo status, confirm it is booked with the date and time from the history. Say "Yes, your demo is confirmed for [date] at [time]" — not "let me get that set up."
+- CALLBACK ALREADY ARRANGED: If the history shows a callback was already requested, do not trigger OFFER_CALLBACK again. Acknowledge it.
+- ESCALATION ALREADY RAISED: If the history shows the user was already escalated to a human, do not re-escalate. Acknowledge the existing request.
+- USER DETAILS ALREADY KNOWN: Name, email, and role were collected before this conversation started. Never ask for them again.
+- NEVER APOLOGISE for confusion you did not cause. If the booking or action is clearly in the history, be confident. Do not say "I apologise for the error in my previous message" when no error was made.
+- BE CONSISTENT: If you said something in an earlier message, stay consistent with it unless the user has explicitly changed the situation.
+- NEVER second-guess the history: If the last assistant message confirmed a demo, that demo is confirmed. Do not contradict it.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## RULES YOU NEVER BREAK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - Never give pricing numbers or ranges
@@ -568,13 +581,17 @@ app.post('/api/chat', async (req, res) => {
     const roleDesc = userContext.role === 'CA / Tax Professional'
       ? 'a CA / Tax Professional who manages compliance for multiple clients (DIFM)'
       : 'a business owner managing their own company compliance (DIY)';
+    let demoNote = '';
+    if (userContext.demoBooked && userContext.bookedDemoDetails) {
+      demoNote = ` IMPORTANT: This user has ALREADY BOOKED A DEMO for ${userContext.bookedDemoDetails.date} at ${userContext.bookedDemoDetails.time}. Do NOT output COLLECT_DEMO_INFO or SHOW_DEMO_CARD. Do NOT ask them to fill a demo form. If they ask about their demo status, simply confirm it is booked.`;
+    }
     contextMessages.push({
       role: 'user',
-      content: `[System context, do not repeat this to the user: The person I am speaking with is ${userContext.name} (address them as "${firstName}"). They are ${roleDesc}. Their email is ${userContext.email}. Tailor all responses to their profile.]`
+      content: `[System context, do not repeat this to the user: The person I am speaking with is ${userContext.name} (address them as "${firstName}"). They are ${roleDesc}. Their email is ${userContext.email}.${demoNote} Tailor all responses to their profile.]`
     });
     contextMessages.push({
       role: 'assistant',
-      content: `[Understood. I will address this person as ${firstName}, pitch the appropriate angle for their role, and guide them toward a demo.]`
+      content: `[Understood. I will address this person as ${firstName}, pitch the appropriate angle for their role, and guide them toward a demo.${userContext.demoBooked ? ' Their demo is already booked — I will not trigger COLLECT_DEMO_INFO or SHOW_DEMO_CARD.' : ''}]`
     });
   }
 
