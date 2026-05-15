@@ -15,14 +15,21 @@ let widgetOpen     = false;
 // ── Widget Controls ──
 function toggleWidget() { widgetOpen ? closeWidget() : openWidget(); }
 
+// Prevent body touchmove (iOS scroll-behind fix) — allow only inside scrollable zones
+function _blockBodyScroll(e) {
+  if (!e.target.closest('#messages-area, #prechat-screen, .inline-card-body, .time-slots')) {
+    e.preventDefault();
+  }
+}
+
 function openWidget() {
   widgetOpen = true;
   document.getElementById('chat-widget').classList.remove('hidden');
   document.getElementById('chat-launcher').classList.add('open');
   if (window.innerWidth <= 480) {
     document.body.classList.add('chat-open');
+    document.addEventListener('touchmove', _blockBodyScroll, { passive: false });
     setWidgetHeight();
-    // Listen on BOTH: visualViewport fires on iOS, window.resize fires on Android
     window.addEventListener('resize', setWidgetHeight);
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', setWidgetHeight);
@@ -42,6 +49,7 @@ function closeWidget() {
   widget.classList.add('hidden');
   widget.style.height = '';
   document.body.classList.remove('chat-open');
+  document.removeEventListener('touchmove', _blockBodyScroll);
   document.getElementById('chat-launcher').classList.remove('open');
   window.removeEventListener('resize', setWidgetHeight);
   if (window.visualViewport) {
@@ -54,7 +62,6 @@ function setWidgetHeight() {
   if (window.innerWidth > 480) return;
   const widget = document.getElementById('chat-widget');
   if (!widget || widget.classList.contains('hidden')) return;
-  // visualViewport.height is keyboard-aware on both iOS and Android
   const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   widget.style.height = h + 'px';
   setTimeout(scrollToBottom, 50);

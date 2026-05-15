@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>KDK Software - Sales Chat</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -748,21 +748,14 @@
 
     /* ─── MOBILE ─── */
     @media (max-width: 480px) {
-      /* iOS scroll-lock: position:fixed prevents rubber-band scroll behind chat */
-      body.chat-open {
-        overflow: hidden;
-        position: fixed;
-        left: 0; right: 0; top: 0;
-        width: 100%;
-      }
+      body.chat-open { overflow: hidden; }
 
       #chat-widget {
         position: fixed;
         top: 0; left: 0; right: 0;
         bottom: auto;
         width: 100%;
-        /* JS sets exact height via setWidgetHeight() on every resize */
-        height: 100vh;
+        height: 100vh;   /* JS overrides this with exact visualViewport.height */
         max-height: none;
         border-radius: 0;
         border-top-left-radius: 20px;
@@ -776,8 +769,6 @@
       }
       #chat-launcher.open { display: none !important; }
       #chat-launcher { bottom: 16px; right: 16px; }
-
-      /* Prevent composer note from wasting space on small screens */
       .composer-note { display: none; }
     }
   </style>
