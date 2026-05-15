@@ -86,6 +86,7 @@ let voiceCallMode  = false;
 let vcTimerInterval = null;
 let vcSeconds      = 0;
 let currentAudio   = null;
+let vcSilenceCount = 0;
 
 // ── Chat History State ──
 let chatSessions   = {};
@@ -1293,7 +1294,8 @@ function startVoiceRecording() {
 
   resultReceived = false;
   recognition = new SR();
-  recognition.lang = 'en-IN';
+  // hi-IN handles Hindi, Hinglish, and English in Chrome/Edge (best for Indian users)
+  recognition.lang = 'hi-IN';
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
@@ -1311,6 +1313,7 @@ function startVoiceRecording() {
 
   recognition.onresult = (event) => {
     resultReceived = true;
+    vcSilenceCount = 0;
     const text = event.results[0][0].transcript.trim();
     if (!text) return;
 
@@ -1342,9 +1345,21 @@ function startVoiceRecording() {
       if (micBtn)   micBtn.classList.remove('recording');
       if (voiceBar) voiceBar.classList.remove('active');
     }
-    // In call mode, if no speech was detected, restart listening
-    if (voiceCallMode && !resultReceived) {
-      setTimeout(() => { if (voiceCallMode) startVoiceRecording(); }, 300);
+    // In call mode, restart only if no result and bot is not busy
+    if (voiceCallMode && !resultReceived && !isStreaming && !currentAudio && !window.speechSynthesis?.speaking) {
+      vcSilenceCount++;
+      if (vcSilenceCount <= 5) {
+        setTimeout(() => { if (voiceCallMode) startVoiceRecording(); }, 400);
+      } else {
+        // After ~5s of silence, pause and show idle; auto-resume after 4s
+        setVcStatus('waiting');
+        setTimeout(() => {
+          if (voiceCallMode && !isRecording && !isStreaming) {
+            vcSilenceCount = 0;
+            startVoiceRecording();
+          }
+        }, 4000);
+      }
     }
   };
 
@@ -1383,8 +1398,9 @@ function toggleTTS() {
 // VOICE CALL MODE
 // ─────────────────────────────────────────────
 function startVoiceCall() {
-  voiceCallMode = true;
-  ttsEnabled    = true;
+  voiceCallMode  = true;
+  ttsEnabled     = true;
+  vcSilenceCount = 0;
 
   document.getElementById('vc-overlay').classList.remove('hidden');
   if (micBtn) { micBtn.classList.add('active'); micBtn.title = 'End voice conversation'; }
@@ -1410,6 +1426,7 @@ function endVoiceCall() {
   vcTimerInterval = null;
 
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
 
   // Stop SpeechRecognition if active
   stopVoiceRecording();
@@ -1425,10 +1442,11 @@ function setVcStatus(state) {
   if (!statusEl || !waveEl) return;
 
   const map = {
-    listening:  { label: 'Listening...',  cls: 'listening'  },
-    processing: { label: 'Processing...', cls: 'processing' },
-    thinking:   { label: 'Thinking...',   cls: 'thinking'   },
-    speaking:   { label: 'Speaking...',   cls: 'speaking'   },
+    listening:  { label: 'Listening...',   cls: 'listening'  },
+    processing: { label: 'Processing...',  cls: 'processing' },
+    thinking:   { label: 'Thinking...',    cls: 'thinking'   },
+    speaking:   { label: 'Speaking...',    cls: 'speaking'   },
+    waiting:    { label: 'Tap to speak',   cls: 'processing' },
   };
   const s = map[state] || map.listening;
   statusEl.textContent = s.label;
@@ -1451,7 +1469,30 @@ async function speakText(text) {
   if (!plain) return;
 
   if (currentAudio) { currentAudio.pause(); URL.revokeObjectURL(currentAudio._url); currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
 
+  // In call mode use browser speechSynthesis — starts instantly, no API round-trip
+  if (voiceCallMode && window.speechSynthesis) {
+    const utter = new SpeechSynthesisUtterance(plain);
+    // Use Hindi voice if response contains Devanagari, else Indian English
+    utter.lang  = /[ऀ-ॿ]/.test(plain) ? 'hi-IN' : 'en-IN';
+    utter.rate  = 1.05;
+    utter.pitch = 1;
+    setVcStatus('speaking');
+    const onCallEnd = () => {
+      if (voiceCallMode) {
+        vcSilenceCount = 0;
+        setVcStatus('listening');
+        setTimeout(() => { if (voiceCallMode && !isRecording) startVoiceRecording(); }, 400);
+      }
+    };
+    utter.onend   = onCallEnd;
+    utter.onerror = onCallEnd;
+    window.speechSynthesis.speak(utter);
+    return;
+  }
+
+  // Non-call mode: use OpenAI TTS for better voice quality
   try {
     const res = await fetch('/api/tts', {
       method: 'POST',
@@ -1470,6 +1511,7 @@ async function speakText(text) {
       URL.revokeObjectURL(url);
       currentAudio = null;
       if (voiceCallMode) {
+        vcSilenceCount = 0;
         setVcStatus('listening');
         setTimeout(() => { if (voiceCallMode && !isRecording) startVoiceRecording(); }, 400);
       }
