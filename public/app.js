@@ -19,8 +19,11 @@ function openWidget() {
   widgetOpen = true;
   document.getElementById('chat-widget').classList.remove('hidden');
   document.getElementById('chat-launcher').classList.add('open');
-  syncMobileViewport();
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', syncMobileViewport);
+  if (window.innerWidth <= 480) {
+    document.body.classList.add('chat-open');
+    syncMobileViewport();
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncMobileViewport);
+  }
   if (!userProfile) {
     setTimeout(() => document.getElementById('pc-name')?.focus(), 120);
   } else {
@@ -33,6 +36,8 @@ function closeWidget() {
   const widget = document.getElementById('chat-widget');
   widget.classList.add('hidden');
   widget.style.height = '';
+  widget.style.top = '';
+  document.body.classList.remove('chat-open');
   document.getElementById('chat-launcher').classList.remove('open');
   if (window.visualViewport) window.visualViewport.removeEventListener('resize', syncMobileViewport);
 }
@@ -41,8 +46,11 @@ function syncMobileViewport() {
   if (!window.visualViewport || window.innerWidth > 480) return;
   const widget = document.getElementById('chat-widget');
   if (!widget || widget.classList.contains('hidden')) return;
-  widget.style.height = window.visualViewport.height + 'px';
-  widget.style.top = window.visualViewport.offsetTop + 'px';
+  const vv = window.visualViewport;
+  // Widget is anchored top:0 in CSS — only shrink height to push composer above keyboard
+  widget.style.height = vv.height + 'px';
+  // Scroll messages to bottom so composer stays in view
+  setTimeout(scrollToBottom, 50);
 }
 
 // ── Training Mode State ──
