@@ -1,0 +1,15 @@
+{
+  "name": "kdk-sales-chatbot",
+  "version": "1.0.0",
+  "description": "KDK Software AI Sales Chatbot powered by OpenAI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "openai": "^4.28.0",
+    "pg": "^8.20.0"
+  }
+}

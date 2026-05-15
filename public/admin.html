@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KDK Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F1F5F9; color: #1E293B;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: #0F172A; color: white; padding: 0 24px;
+      display: flex; align-items: center; gap: 16px; height: 52px;
+      flex-shrink: 0;
+    }
+    .logo { font-size: 16px; font-weight: 700; color: #38BDF8; letter-spacing: -0.3px; }
+    .topbar-title { font-size: 13px; color: #64748B; }
+    .topbar-stats { margin-left: auto; display: flex; gap: 8px; }
+    .stat-chip {
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: default;
+    }
+    .stat-chip.blue   { background: rgba(56,189,248,0.15);  color: #38BDF8; }
+    .stat-chip.green  { background: rgba(52,211,153,0.15);  color: #34D399; }
+    .stat-chip.teal   { background: rgba(20,184,166,0.15);  color: #2DD4BF; }
+    .stat-chip.yellow { background: rgba(234,179,8,0.15);   color: #EAB308; }
+    .refresh-btn {
+      background: rgba(255,255,255,0.08); border: none; color: #94A3B8;
+      padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-left: 4px;
+    }
+    .refresh-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+
+    /* ── TABS ── */
+    .tabs {
+      background: white; border-bottom: 1px solid #E2E8F0;
+      display: flex; padding: 0 24px; flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 12px 20px; border: none; background: none; cursor: pointer;
+      font-size: 14px; font-weight: 500; color: #64748B;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #334155; }
+    .tab-btn.active { color: #0F172A; border-bottom-color: #38BDF8; font-weight: 600; }
+
+    /* ── CONTENT ── */
+    .content { flex: 1; overflow: hidden; display: flex; }
+    .tab-pane { display: none; flex: 1; overflow: hidden; }
+    .tab-pane.active { display: flex; flex-direction: column; }
+
+    /* ════════════════════════════════
+       CONVERSATIONS TAB
+    ════════════════════════════════ */
+    .split { display: flex; flex: 1; overflow: hidden; }
+
+    /* Session list */
+    .session-list {
+      width: 300px; border-right: 1px solid #E2E8F0; background: white;
+      overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
+    }
+    .session-list-header {
+      padding: 12px 16px; border-bottom: 1px solid #F1F5F9;
+      font-size: 11px; font-weight: 700; color: #94A3B8;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      position: sticky; top: 0; background: white; z-index: 1; flex-shrink: 0;
+    }
+    .session-item {
+      padding: 12px 14px; border-bottom: 1px solid #F8FAFC; cursor: pointer;
+      display: flex; gap: 10px; align-items: flex-start; transition: background 0.1s;
+    }
+    .session-item:hover { background: #F8FAFC; }
+    .session-item.active { background: #EFF6FF; border-left: 3px solid #3B82F6; padding-left: 11px; }
+    .session-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .session-avatar.biz { background: #DBEAFE; color: #1D4ED8; }
+    .session-avatar.ca  { background: #F3E8FF; color: #7C3AED; }
+    .session-info { flex: 1; min-width: 0; }
+    .session-name  { font-size: 13px; font-weight: 600; color: #1E293B; }
+    .session-role  { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+    .session-preview {
+      font-size: 11.5px; color: #64748B; margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .session-meta { text-align: right; flex-shrink: 0; }
+    .session-time  { font-size: 11px; color: #94A3B8; }
+    .session-count { font-size: 11px; color: #94A3B8; margin-top: 2px; }
+
+    /* Chat pane */
+    .chat-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #F8FAFC; }
+    .chat-empty {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; color: #94A3B8; font-size: 14px; text-align: center; gap: 10px;
+    }
+    .chat-empty-icon { font-size: 36px; }
+    .chat-header {
+      background: white; border-bottom: 1px solid #E2E8F0;
+      padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .chat-header-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .chat-header-avatar.biz { background: #DBEAFE; color: #1D4ED8; }
+    .chat-header-avatar.ca  { background: #F3E8FF; color: #7C3AED; }
+    .chat-header-name { font-size: 15px; font-weight: 600; }
+    .chat-header-meta { font-size: 12px; color: #64748B; margin-top: 1px; }
+    .chat-header-badge {
+      margin-left: auto; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .chat-header-badge.ca  { background: #EDE9FE; color: #5B21B6; }
+    .chat-header-badge.biz { background: #DBEAFE; color: #1D4ED8; }
+    .chat-messages-scroll { flex: 1; overflow-y: auto; }
+    .chat-messages { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+
+    .date-sep {
+      text-align: center; font-size: 11px; color: #94A3B8;
+      position: relative; margin: 4px 0;
+    }
+    .date-sep::before {
+      content: ''; position: absolute; top: 50%; left: 0; right: 0;
+      height: 1px; background: #E2E8F0; z-index: 0;
+    }
+    .date-sep span { background: #F8FAFC; padding: 0 10px; position: relative; z-index: 1; }
+
+    .chat-msg { display: flex; gap: 8px; align-items: flex-end; }
+    .chat-msg.user { flex-direction: row-reverse; }
+    .chat-msg-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+    }
+    .chat-msg-avatar.user { background: #DBEAFE; color: #1D4ED8; }
+    .chat-msg-avatar.bot  { background: #F3E8FF; color: #7C3AED; }
+    .chat-msg-body { max-width: 68%; display: flex; flex-direction: column; }
+    .chat-msg.user .chat-msg-body { align-items: flex-end; }
+    .chat-bubble {
+      padding: 9px 13px; border-radius: 14px;
+      font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+    }
+    .chat-bubble.user { background: #DBEAFE; color: #1E40AF; border-bottom-right-radius: 3px; }
+    .chat-bubble.bot  { background: white; color: #334155; border: 1px solid #E2E8F0; border-bottom-left-radius: 3px; }
+    .chat-ts { font-size: 10px; color: #94A3B8; margin-top: 3px; padding: 0 2px; }
+
+    /* ════════════════════════════════
+       LEADS & DEMOS TAB
+    ════════════════════════════════ */
+    .leads-pane { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .section-card {
+      background: white; border-radius: 12px; border: 1px solid #E2E8F0;
+      margin-bottom: 20px; overflow: hidden;
+    }
+    .section-card-header {
+      padding: 13px 18px; border-bottom: 1px solid #F1F5F9;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-card-title { font-size: 14px; font-weight: 700; color: #1E293B; }
+    .count-badge {
+      padding: 2px 9px; border-radius: 20px; background: #F1F5F9;
+      font-size: 12px; font-weight: 600; color: #64748B;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700;
+      color: #94A3B8; text-transform: uppercase; letter-spacing: 0.4px;
+      border-bottom: 1px solid #F1F5F9; background: #FAFAFA;
+    }
+    td { padding: 10px 14px; font-size: 13px; color: #334155; border-bottom: 1px solid #F8FAFC; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #F8FAFC; }
+    .role-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    }
+    .role-badge.ca  { background: #EDE9FE; color: #5B21B6; }
+    .role-badge.biz { background: #DBEAFE; color: #1D4ED8; }
+    .empty-table { padding: 40px; text-align: center; color: #94A3B8; font-size: 13px; }
+
+    /* ════════════════════════════════
+       CORRECTIONS TAB
+    ════════════════════════════════ */
+    .corrections-pane { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+    .corrections-toolbar {
+      background: white; border-bottom: 1px solid #E2E8F0;
+      padding: 10px 20px; display: flex; gap: 6px; align-items: center;
+      flex-shrink: 0; position: sticky; top: 0; z-index: 1;
+    }
+    .filter-btn {
+      padding: 5px 16px; border-radius: 20px; border: 1.5px solid #CBD5E1;
+      background: white; cursor: pointer; font-size: 12px; color: #64748B;
+      font-weight: 500; transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: #94A3B8; }
+    .filter-btn.active { background: #0F172A; color: white; border-color: #0F172A; }
+
+    .corrections-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .corr-card { background: white; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; }
+    .corr-header {
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid #F1F5F9; background: #FAFAFA;
+    }
+    .corr-id   { font-size: 11px; font-weight: 700; color: #94A3B8; }
+    .corr-who  { font-size: 13px; font-weight: 600; color: #334155; }
+    .corr-time { font-size: 11px; color: #94A3B8; margin-left: auto; }
+    .status-badge {
+      padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.2px;
+    }
+    .status-badge.pending  { background: #FEF3C7; color: #92400E; }
+    .status-badge.approved { background: #D1FAE5; color: #065F46; }
+    .status-badge.rejected { background: #FEE2E2; color: #991B1B; }
+
+    .corr-chat { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .corr-bubble-row { display: flex; gap: 8px; align-items: flex-start; }
+    .corr-bubble-row.user-row { flex-direction: row-reverse; }
+    .corr-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .corr-avatar.user { background: #DBEAFE; color: #1D4ED8; }
+    .corr-avatar.bot  { background: #F3E8FF; color: #7C3AED; }
+    .corr-bubble-wrap { display: flex; flex-direction: column; max-width: 76%; }
+    .corr-bubble-row.user-row .corr-bubble-wrap { align-items: flex-end; }
+    .bubble-label { font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+    .corr-bubble {
+      padding: 9px 13px; border-radius: 12px; font-size: 13px; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .corr-bubble.user { background: #EFF6FF; color: #1E40AF; border-bottom-right-radius: 3px; }
+    .corr-bubble.bot  { background: #F5F3FF; color: #1E293B; border-bottom-left-radius: 3px; }
+
+    .corr-fix {
+      margin: 0 16px 14px; padding: 12px 14px; border-radius: 8px;
+      background: #ECFDF5; border: 1.5px solid #6EE7B7;
+    }
+    .corr-fix-label { font-size: 10px; font-weight: 700; color: #065F46; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+    .corr-fix-text  { font-size: 13px; color: #064E3B; line-height: 1.55; white-space: pre-wrap; }
+
+    .corr-footer {
+      padding: 10px 16px; border-top: 1px solid #F1F5F9;
+      display: flex; align-items: center; gap: 8px; background: #FAFAFA;
+    }
+    .btn-approve {
+      padding: 7px 18px; border-radius: 7px; border: none;
+      background: #10B981; color: white; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-approve:hover { background: #059669; }
+    .btn-reject {
+      padding: 7px 18px; border-radius: 7px;
+      background: white; color: #EF4444; border: 1.5px solid #EF4444;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-reject:hover { background: #FEF2F2; }
+    .btn-approve:disabled, .btn-reject:disabled { opacity: 0.45; cursor: not-allowed; }
+    .reviewed-info { font-size: 12px; color: #94A3B8; }
+
+    /* ── Shared empty / loading ── */
+    .empty-state { text-align: center; padding: 60px 20px; color: #94A3B8; }
+    .empty-icon  { font-size: 32px; margin-bottom: 10px; }
+    .empty-msg   { font-size: 14px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; padding: 10px 18px;
+      background: #0F172A; color: white; border-radius: 8px; font-size: 13px; z-index: 9999;
+    }
+    .toast.green { background: #059669; }
+    .toast.red   { background: #DC2626; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">KDK</div>
+  <div class="topbar-title">Admin Dashboard</div>
+  <div class="topbar-stats">
+    <span class="stat-chip blue"   id="stat-sessions">— Sessions</span>
+    <span class="stat-chip green"  id="stat-leads">— Leads</span>
+    <span class="stat-chip teal"   id="stat-demos">— Demos</span>
+    <span class="stat-chip yellow" id="stat-pending">— Pending</span>
+  </div>
+  <button class="refresh-btn" onclick="init()">↻ Refresh</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('conversations', this)">Conversations</button>
+  <button class="tab-btn"        onclick="switchTab('leads',         this)">Leads &amp; Demos</button>
+  <button class="tab-btn"        onclick="switchTab('corrections',   this)">Corrections</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ── CONVERSATIONS ── -->
+  <div id="pane-conversations" class="tab-pane active">
+    <div class="split">
+      <div class="session-list" id="session-list">
+        <div class="session-list-header">Conversations</div>
+        <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>
+      </div>
+      <div class="chat-pane" id="chat-pane">
+        <div class="chat-empty">
+          <div class="chat-empty-icon">💬</div>
+          <div>Select a conversation to view the full chat</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LEADS & DEMOS ── -->
+  <div id="pane-leads" class="tab-pane">
+    <div class="leads-pane" id="leads-pane">
+      <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ── CORRECTIONS ── -->
+  <div id="pane-corrections" class="tab-pane">
+    <div class="corrections-pane">
+      <div class="corrections-toolbar">
+        <button class="filter-btn active" onclick="setFilter('pending',  this)">Pending</button>
+        <button class="filter-btn"        onclick="setFilter('approved', this)">Approved</button>
+        <button class="filter-btn"        onclick="setFilter('rejected', this)">Rejected</button>
+        <button class="filter-btn"        onclick="setFilter('',         this)">All</button>
+      </div>
+      <div id="corrections-list" class="corrections-list">
+        <div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .content -->
+
+<script>
+let correctionFilter = 'pending';
+let activeSessionId  = null;
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+async function init() {
+  loadStats();
+  const activeTab = document.querySelector('.tab-btn.active');
+  if (!activeTab) return loadSessions();
+  const text = activeTab.textContent.toLowerCase();
+  if (text.includes('conv'))   loadSessions();
+  else if (text.includes('lead')) loadLeads();
+  else if (text.includes('corr')) loadCorrections();
+}
+
+async function loadStats() {
+  try {
+    const [sessR, leadsR, demosR, feedR] = await Promise.all([
+      fetch('/api/sessions').then(r => r.json()).catch(() => ({ count: 0 })),
+      fetch('/api/leads').then(r => r.json()).catch(() => []),
+      fetch('/api/demos').then(r => r.json()).catch(() => []),
+      fetch('/api/training-feedback?status=pending').then(r => r.json()).catch(() => ({ count: 0 }))
+    ]);
+    document.getElementById('stat-sessions').textContent = `${sessR.count ?? 0} Sessions`;
+    document.getElementById('stat-leads').textContent    = `${Array.isArray(leadsR) ? leadsR.length : 0} Leads`;
+    document.getElementById('stat-demos').textContent    = `${Array.isArray(demosR) ? demosR.length : 0} Demos`;
+    document.getElementById('stat-pending').textContent  = `${feedR.count ?? 0} Pending`;
+  } catch(e) {}
+}
+
+// ─────────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-' + tab).classList.add('active');
+  if      (tab === 'conversations') loadSessions();
+  else if (tab === 'leads')         loadLeads();
+  else if (tab === 'corrections')   loadCorrections();
+}
+
+// ─────────────────────────────────────────────
+// SESSIONS — left panel list
+// ─────────────────────────────────────────────
+async function loadSessions() {
+  const list = document.getElementById('session-list');
+  try {
+    const data = await fetch('/api/sessions').then(r => r.json());
+    const sessions = data.sessions || [];
+    if (!sessions.length) {
+      list.innerHTML = header(0) + '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-msg">No conversations yet.<br>Start chatting to see sessions here.</div></div>';
+      return;
+    }
+    list.innerHTML = header(sessions.length) + sessions.map(renderSessionItem).join('');
+    if (activeSessionId) {
+      const el = list.querySelector(`[data-sid="${CSS.escape(activeSessionId)}"]`);
+      if (el) el.classList.add('active');
+    }
+  } catch(e) {
+    list.innerHTML = header(0) + '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-msg">Could not load.<br>Is the server running?</div></div>';
+  }
+}
+
+function header(count) {
+  return `<div class="session-list-header">Conversations (${count})</div>`;
+}
+
+function renderSessionItem(s) {
+  const isCA = (s.user?.role || '').includes('CA');
+  const initials = getInitials(s.user?.name || '?');
+  const msgCount = s.messages?.length || 0;
+  const turns    = Math.floor(msgCount / 2);
+  const last     = s.messages?.[s.messages.length - 1];
+  const preview  = last ? ((last.role === 'user' ? '↑ ' : '↓ ') + stripTokens(last.content || '').slice(0, 55) + '…') : 'No messages';
+  const timeAgo  = relativeTime(s.lastAt || s.startedAt);
+
+  return `<div class="session-item" data-sid="${esc(s.id)}" onclick="openSession(this)">
+    <div class="session-avatar ${isCA ? 'ca' : 'biz'}">${initials}</div>
+    <div class="session-info">
+      <div class="session-name">${esc(s.user?.name || 'Unknown')}</div>
+      <div class="session-role">${esc(s.user?.role || 'Unknown')}</div>
+      <div class="session-preview">${esc(preview)}</div>
+    </div>
+    <div class="session-meta">
+      <div class="session-time">${timeAgo}</div>
+      <div class="session-count">${turns} turn${turns !== 1 ? 's' : ''}</div>
+    </div>
+  </div>`;
+}
+
+function openSession(el) {
+  const sid = el.dataset.sid;
+  document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  activeSessionId = sid;
+  showChatThread(sid);
+}
+
+async function showChatThread(id) {
+  const pane = document.getElementById('chat-pane');
+  pane.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">⏳</div><div>Loading chat...</div></div>';
+  try {
+    const sess = await fetch(`/api/sessions/${encodeURIComponent(id)}`).then(r => r.json());
+    if (sess.error) throw new Error(sess.error);
+
+    const isCA     = (sess.user?.role || '').includes('CA');
+    const initials = getInitials(sess.user?.name || '?');
+    const email    = sess.user?.email ? ` · ${sess.user.email}` : '';
+    const started  = sess.startedAt ? ` · Started ${relativeTime(sess.startedAt)}` : '';
+
+    pane.innerHTML = `
+      <div class="chat-header">
+        <div class="chat-header-avatar ${isCA ? 'ca' : 'biz'}">${initials}</div>
+        <div>
+          <div class="chat-header-name">${esc(sess.user?.name || 'Unknown')}</div>
+          <div class="chat-header-meta">${esc(email + started)}</div>
+        </div>
+        <div class="chat-header-badge ${isCA ? 'ca' : 'biz'}">${esc(sess.user?.role || 'Unknown')}</div>
+      </div>
+      <div class="chat-messages-scroll">
+        <div class="chat-messages">${buildMessages(sess.messages || [], sess.user?.name || 'C')}</div>
+      </div>`;
+  } catch(e) {
+    pane.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">⚠️</div><div>Could not load conversation.</div></div>';
+  }
+}
+
+function buildMessages(msgs, userName) {
+  if (!msgs.length) return '<div style="text-align:center;color:#94A3B8;padding:40px 20px;font-size:13px">No messages in this session.</div>';
+
+  const initials = getInitials(userName);
+  let html = '';
+  let lastDate = '';
+
+  msgs.forEach(m => {
+    const d = m.ts ? new Date(m.ts) : null;
+    const dateStr = d ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+    if (dateStr && dateStr !== lastDate) {
+      html += `<div class="date-sep"><span>${dateStr}</span></div>`;
+      lastDate = dateStr;
+    }
+    const timeStr = d ? d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+    const content = m.role === 'assistant' ? stripTokens(m.content || '') : (m.content || '');
+
+    if (m.role === 'user') {
+      html += `<div class="chat-msg user">
+        <div class="chat-msg-avatar user">${initials}</div>
+        <div class="chat-msg-body">
+          <div class="chat-bubble user">${esc(content)}</div>
+          <div class="chat-ts">${timeStr}</div>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="chat-msg bot">
+        <div class="chat-msg-avatar bot">A</div>
+        <div class="chat-msg-body">
+          <div class="chat-bubble bot">${esc(content)}</div>
+          <div class="chat-ts">${timeStr}</div>
+        </div>
+      </div>`;
+    }
+  });
+  return html;
+}
+
+// ─────────────────────────────────────────────
+// LEADS & DEMOS
+// ─────────────────────────────────────────────
+async function loadLeads() {
+  const pane = document.getElementById('leads-pane');
+  pane.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>';
+  try {
+    const [leadsData, demosData] = await Promise.all([
+      fetch('/api/leads').then(r => r.json()),
+      fetch('/api/demos').then(r => r.json())
+    ]);
+    const leads = Array.isArray(leadsData) ? leadsData : [];
+    const demos = Array.isArray(demosData) ? demosData : [];
+    pane.innerHTML = buildLeadsSection(leads) + buildDemosSection(demos);
+  } catch(e) {
+    pane.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-msg">Could not load data.</div></div>';
+  }
+}
+
+function buildLeadsSection(leads) {
+  const rows = [...leads].reverse().map(l => {
+    const isCA = (l.role || '').includes('CA');
+    return `<tr>
+      <td><strong>${esc(l.name || '—')}</strong></td>
+      <td>${esc(l.email || '—')}</td>
+      <td><span class="role-badge ${isCA ? 'ca' : 'biz'}">${esc(l.role || 'Unknown')}</span></td>
+      <td>${fmtDatetime(l.capturedAt)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">Leads Captured</div>
+      <div class="count-badge">${leads.length}</div>
+    </div>
+    ${leads.length
+      ? `<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Captured At</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="empty-table">No leads yet.</div>'}
+  </div>`;
+}
+
+function buildDemosSection(demos) {
+  const rows = [...demos].reverse().map(d => {
+    const isCA = (d.role || '').includes('CA');
+    return `<tr>
+      <td><strong>${esc(d.name || '—')}</strong></td>
+      <td>${esc(d.phone || '—')}</td>
+      <td>${esc(d.email || '—')}</td>
+      <td>${esc(d.company || '—')}</td>
+      <td><span class="role-badge ${isCA ? 'ca' : 'biz'}">${esc(d.role || '—')}</span></td>
+      <td>${esc(d.timePreference || '—')}</td>
+      <td>${fmtDatetime(d.bookedAt)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">Demo Bookings</div>
+      <div class="count-badge">${demos.length}</div>
+    </div>
+    ${demos.length
+      ? `<table><thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Company</th><th>Role</th><th>Time Slot</th><th>Booked At</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="empty-table">No demo bookings yet.</div>'}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// CORRECTIONS
+// ─────────────────────────────────────────────
+async function loadCorrections() {
+  const list = document.getElementById('corrections-list');
+  list.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>';
+  const url = correctionFilter ? `/api/training-feedback?status=${correctionFilter}` : '/api/training-feedback';
+  try {
+    const data  = await fetch(url).then(r => r.json());
+    const items = data.feedback || [];
+    if (!items.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-msg">No corrections here.</div></div>';
+      return;
+    }
+    list.innerHTML = items.map(renderCorrectionCard).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-msg">Could not load. Is server running?</div></div>';
+  }
+}
+
+function setFilter(status, btn) {
+  correctionFilter = status;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadCorrections();
+}
+
+function renderCorrectionCard(item) {
+  const id          = item.id;
+  const customerQ   = item.customer_question  || item.customerQuestion  || null;
+  const botResp     = item.bot_response_given || item.botResponseGiven  || null;
+  const correction  = item.suggested_correction || item.suggestedCorrection || '—';
+  const submittedBy = item.submitted_by || item.submittedBy || 'Unknown';
+  const userRole    = item.user_role    || item.userRole    || '';
+  const status      = item.status || 'pending';
+  const reviewedBy  = item.reviewed_by  || item.reviewedBy  || null;
+  const createdAt   = item.created_at   || item.createdAt   || null;
+
+  return `<div class="corr-card" id="ccard-${id}">
+    <div class="corr-header">
+      <span class="corr-id">#${id}</span>
+      <span class="corr-who">${esc(submittedBy)}</span>
+      ${userRole ? `<span style="font-size:11px;color:#94A3B8">${esc(userRole)}</span>` : ''}
+      <span class="status-badge ${status}">${status}</span>
+      <span class="corr-time">${fmtDatetime(createdAt)}</span>
+    </div>
+
+    <div class="corr-chat">
+      ${customerQ ? `
+      <div class="corr-bubble-row user-row">
+        <div class="corr-avatar user">C</div>
+        <div class="corr-bubble-wrap">
+          <div class="bubble-label">Customer asked</div>
+          <div class="corr-bubble user">${esc(customerQ)}</div>
+        </div>
+      </div>` : ''}
+
+      ${botResp ? `
+      <div class="corr-bubble-row">
+        <div class="corr-avatar bot">A</div>
+        <div class="corr-bubble-wrap">
+          <div class="bubble-label">Aria responded</div>
+          <div class="corr-bubble bot">${esc(botResp)}</div>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <div class="corr-fix">
+      <div class="corr-fix-label">✏️ Correct answer should be</div>
+      <div class="corr-fix-text">${esc(correction)}</div>
+    </div>
+
+    <div class="corr-footer">
+      ${status === 'pending' ? `
+        <button class="btn-approve" onclick="review(${id},'approved',this)">✓ Approve &amp; Go Live</button>
+        <button class="btn-reject"  onclick="review(${id},'rejected',this)">✗ Reject</button>
+      ` : `
+        <div class="reviewed-info">Reviewed by <strong>${esc(reviewedBy || '—')}</strong></div>
+      `}
+    </div>
+  </div>`;
+}
+
+async function review(id, status, btn) {
+  const footer = btn.closest('.corr-footer');
+  footer.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const res  = await fetch(`/api/training-feedback/${id}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, reviewedBy: 'Kartik' })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(status === 'approved' ? '✓ Approved — correction is now live!' : '✗ Rejected', status === 'approved' ? 'green' : 'red');
+      setTimeout(() => { loadCorrections(); loadStats(); }, 700);
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch(e) {
+    showToast('Error — please try again', 'red');
+    footer.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function getInitials(name) {
+  return String(name || '?').split(' ').map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || '?';
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function stripTokens(text) {
+  return String(text || '')
+    .replace(/QUICK_REPLIES:\[[^\]]*\]?/gs, '')
+    .replace(/COLLECT_DEMO_INFO:true/g, '')
+    .replace(/SHOW_DEMO_CARD:true/g, '')
+    .replace(/ESCALATE_TO_HUMAN:true/g, '')
+    .replace(/OFFER_CALLBACK:true/g, '')
+    .trim();
+}
+
+function relativeTime(isoStr) {
+  if (!isoStr) return '';
+  const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+  if (diff < 60)    return 'Just now';
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return new Date(isoStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function fmtDatetime(isoStr) {
+  if (!isoStr) return '—';
+  return new Date(isoStr).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function showToast(msg, type = '') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+init();
+</script>
+</body>
+</html>

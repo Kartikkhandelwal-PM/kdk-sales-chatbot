@@ -1,0 +1,18 @@
+# Environment — never commit secrets
+.env
+
+# Dependencies — Railway installs these automatically
+node_modules/
+
+# Runtime data — resets on deploy anyway, use PostgreSQL instead
+sessions.json
+leads.json
+demo_requests.json
+feedback.json
+
+# Embeddings — either commit or regenerate on deploy (see below)
+# embeddings.json   ← uncomment this line if you want to regenerate on every deploy
+
+# Server logs
+server_out.txt
+server_err.txt
