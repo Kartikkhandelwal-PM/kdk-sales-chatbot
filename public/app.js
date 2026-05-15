@@ -21,8 +21,13 @@ function openWidget() {
   document.getElementById('chat-launcher').classList.add('open');
   if (window.innerWidth <= 480) {
     document.body.classList.add('chat-open');
-    syncMobileViewport();
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', syncMobileViewport);
+    setWidgetHeight();
+    // Listen on BOTH: visualViewport fires on iOS, window.resize fires on Android
+    window.addEventListener('resize', setWidgetHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', setWidgetHeight);
+      window.visualViewport.addEventListener('scroll', setWidgetHeight);
+    }
   }
   if (!userProfile) {
     setTimeout(() => document.getElementById('pc-name')?.focus(), 120);
@@ -36,22 +41,26 @@ function closeWidget() {
   const widget = document.getElementById('chat-widget');
   widget.classList.add('hidden');
   widget.style.height = '';
-  widget.style.top = '';
   document.body.classList.remove('chat-open');
   document.getElementById('chat-launcher').classList.remove('open');
-  if (window.visualViewport) window.visualViewport.removeEventListener('resize', syncMobileViewport);
+  window.removeEventListener('resize', setWidgetHeight);
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', setWidgetHeight);
+    window.visualViewport.removeEventListener('scroll', setWidgetHeight);
+  }
 }
 
-function syncMobileViewport() {
-  if (!window.visualViewport || window.innerWidth > 480) return;
+function setWidgetHeight() {
+  if (window.innerWidth > 480) return;
   const widget = document.getElementById('chat-widget');
   if (!widget || widget.classList.contains('hidden')) return;
-  const vv = window.visualViewport;
-  // Widget is anchored top:0 in CSS — only shrink height to push composer above keyboard
-  widget.style.height = vv.height + 'px';
-  // Scroll messages to bottom so composer stays in view
+  // visualViewport.height is keyboard-aware on both iOS and Android
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  widget.style.height = h + 'px';
   setTimeout(scrollToBottom, 50);
 }
+
+function syncMobileViewport() { setWidgetHeight(); }
 
 // ── Training Mode State ──
 let trainingMode   = false;

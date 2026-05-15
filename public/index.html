@@ -372,6 +372,8 @@
     #messages-area {
       flex: 1; min-height: 0;
       overflow-y: auto; scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
     }
     #messages-area::-webkit-scrollbar { width: 4px; }
     #messages-area::-webkit-scrollbar-thumb { background: rgba(137,153,175,.2); border-radius: 99px; }
@@ -746,17 +748,21 @@
 
     /* ─── MOBILE ─── */
     @media (max-width: 480px) {
-      /* Lock body scroll behind the open chat */
-      body.chat-open { overflow: hidden; }
+      /* iOS scroll-lock: position:fixed prevents rubber-band scroll behind chat */
+      body.chat-open {
+        overflow: hidden;
+        position: fixed;
+        left: 0; right: 0; top: 0;
+        width: 100%;
+      }
 
       #chat-widget {
-        /* Anchor from TOP so JS only needs to shrink height when keyboard appears */
         position: fixed;
         top: 0; left: 0; right: 0;
         bottom: auto;
         width: 100%;
+        /* JS sets exact height via setWidgetHeight() on every resize */
         height: 100vh;
-        height: 100dvh;
         max-height: none;
         border-radius: 0;
         border-top-left-radius: 20px;
@@ -764,15 +770,15 @@
       }
       #chat-widget.hidden {
         transform: translateY(110%);
+        opacity: 0;
         pointer-events: none;
         visibility: hidden;
-        opacity: 0;
       }
-      /* Hide floating launcher on mobile when chat is open — close button is in header */
-      #chat-launcher.open {
-        display: none !important;
-      }
+      #chat-launcher.open { display: none !important; }
       #chat-launcher { bottom: 16px; right: 16px; }
+
+      /* Prevent composer note from wasting space on small screens */
+      .composer-note { display: none; }
     }
   </style>
 </head>
