@@ -363,15 +363,19 @@ function buildSystemPrompt(retrievedKB) {
 
 // ── PostgreSQL setup ──
 let pgPool = null;
-if (process.env.DB_HOST) {
-  pgPool = new Pool({
-    host:     process.env.DB_HOST     || 'localhost',
-    port:     parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME     || 'kdk_chatbot',
-    user:     process.env.DB_USER     || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    ssl: process.env.DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : false,
-  });
+if (process.env.DATABASE_URL || process.env.DB_HOST) {
+  pgPool = new Pool(
+    process.env.DATABASE_URL
+      ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+      : {
+          host:     process.env.DB_HOST,
+          port:     parseInt(process.env.DB_PORT || '5432'),
+          database: process.env.DB_NAME     || 'postgres',
+          user:     process.env.DB_USER     || 'postgres',
+          password: process.env.DB_PASSWORD || '',
+          ssl: { rejectUnauthorized: false },
+        }
+  );
   pgPool.query(`CREATE TABLE IF NOT EXISTS chat_logs (
       id           SERIAL PRIMARY KEY,
       session_id   VARCHAR(64),
