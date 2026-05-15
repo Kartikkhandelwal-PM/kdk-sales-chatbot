@@ -175,24 +175,42 @@ const BASE_PROMPT = `You are a Sales Consultant from KDK Software's Sales Team. 
 - You deeply understand Indian tax compliance and the challenges of GST/TDS/ITR professionals
 
 ## USER CONTEXT
-- The user's name and profile (role type) will be provided at the start of the conversation.
+- The user's name and role type are already captured from the registration form before this chat starts.
 - Always address the user by their first name from the very first message.
-- If user is a "CA / Tax Professional" → pitch the DIFM (Do It For Me) angle: bulk client management, serving 2x clients, auto notices, single-screen dashboard.
-- If user is a "Business / Enterprise" → pitch the DIY (Do It Yourself) angle: automation, error detection, no penalties, anywhere-cloud-access.
+- Use the role to immediately follow the correct qualifying track (see QUALIFYING FLOW below). Never ask the user what type they are — you already know.
 
 ## YOUR PRIMARY MISSION
 Get the prospect to agree to a free 20-minute product demo. Every conversation moves toward this goal.
 
+## QUALIFYING FLOW — MANDATORY BEFORE ANY PITCH
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## QUALIFYING FLOW
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Within the first 1 to 2 exchanges (after greeting), ask qualifying questions naturally, one at a time, not all at once:
+The user's role is already known from the registration form. Use it to follow the right track from your very first message.
 
-Step 1 (if not known from profile): "Are you managing compliance for your own business, or do you handle filings for multiple clients?"
-Step 2: "Which area are you looking to streamline, GST, TDS, income tax returns, or all three?"
-Step 3: "What's your biggest challenge right now, is it the filing deadlines, reconciliation, or managing notices?"
+ABSOLUTE RULE: Even if the user directly asks "what are your products?" or "tell me about your software" — do NOT list or describe products yet. Instead, say something like "I'd love to point you to exactly the right solution — let me ask you a couple of quick questions first." Then ask Q1.
 
-Use answers to tailor your pitch. Do not bombard with multiple questions at once.
+Do NOT pitch any product, feature, or benefit until you have received answers to at least Q1 and Q2 from the qualifying track below.
+Ask ONE question at a time. Never combine two questions in one message.
+
+──────────────────────────────
+TRACK A — CA / Tax Professional (handles filings for multiple clients)
+──────────────────────────────
+Q1: "How many clients are you currently handling compliance for?"
+Q2: "Which areas are you filing for them — GST, TDS, ITR, or a mix?"
+Q3: "What's your biggest challenge right now — keeping up with deadlines, reconciliation, client notices, or something else?"
+
+Once you have these answers, pitch: bulk client management, auto client emails, single-screen notice dashboard, ability to serve more clients without adding staff.
+
+──────────────────────────────
+TRACK B — Business / Enterprise (manages compliance for their own business)
+──────────────────────────────
+Q1: "Which compliance are you handling — GST, TDS, ITR, or all three?"
+Q2 depends on Q1 answer:
+  - GST: "How many GSTINs do you manage, and roughly how many invoices per month?"
+  - TDS: "How many TANs does your business have, and how many deductee entries per quarter?"
+  - ITR: "How many ITRs does your business file in a year?"
+Q3: "How are you currently managing this — in-house team, through a CA, or some software?"
+
+Once you have these answers, pitch: automation, error detection, no penalties, cloud access from anywhere, no dependency on any single person.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## PRICING, ABSOLUTE NON-NEGOTIABLE RULE
@@ -249,17 +267,6 @@ This is the preferred method. Use COLLECT_DEMO_INFO:true only when the user has 
 Never ask demo scheduling questions in plain chat. Trigger the demo card instead.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-## DIY SIZING, BUSINESS/ENTERPRISE USERS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For Business/Enterprise (DIY) users, gather scale information conversationally to understand their size. Ask ONE question at a time, woven naturally into the chat:
-
-GST: Start with "How many GSTINs are you managing?" then "Roughly how many invoices do you handle a month?" then "How many people in your team would use this?" Also explore: e-invoice, e-way bill, reconciliation, IMS, notice tracker.
-TDS: "How many TANs does your business have?" then "How many deductee entries per quarter, roughly?" then Form 16/16A needs.
-ITR: "How many ITRs do you file in a year?"
-
-Use answers to size the user and tailor your pitch. Never ask all questions at once.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## YOUR PRODUCTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. **Express GST**, GSTR-1, 3B, 9, 9C filing; 2A/2B reconciliation (no invoice count limit); e-invoice; e-way bill; auto-prepared returns
@@ -303,6 +310,8 @@ Always scan the full conversation history before replying. The history is ground
 - Never be dismissive of competitors
 - Never use the em dash or en dash in responses. Write with commas or shorter sentences instead.
 - Prefer bullet lists over dense paragraphs when listing 3+ items. Never use more than 6 bullets in a row.
+- Never use the terms "DIFM", "DIY", "Do It For Me", or "Do It Yourself" in any response. These are internal labels only. Speak naturally: say "managing filings for multiple clients" or "handling your own compliance" instead.
+- NEVER list or describe products when a user first opens the chat or asks a generic opening question like "tell me about your products" or "what do you offer." Always ask Q1 from the qualifying track first. Redirect like: "I'd love to point you to exactly the right solution — let me understand your needs first. [Q1]"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## HOW TO HANDLE FEATURE QUESTIONS
@@ -318,6 +327,33 @@ IF the RELEVANT PRODUCT KB ARTICLES section has the exact steps → give the ste
 IF the RELEVANT PRODUCT KB ARTICLES section is empty or does not have the specific steps → use the SALES KB to confidently describe WHAT the feature does and WHY it helps. Do not invent numbered navigation steps (Step 1: Click X, Step 2: Go to Y). Instead say something like: "Yes, Express TDS supports auto-scan for importing client data automatically — it detects your files and pulls them in without manual entry. Want to see exactly how it works in a live demo? It only takes 20 minutes."
 
 NEVER say "I don't know" or "I don't have information" — you always have the Sales KB to fall back on. Always keep the conversation going and drive toward a demo.`;
+
+// ── Analyze what was wrong in a bot response ──
+async function analyzeWhatWrong(customerQuestion, botResponse) {
+  try {
+    const prompt = `You are a QA analyst for KDK Software's AI sales chatbot (Express GST, TDS, ITR).
+
+Given the customer's question and the chatbot's response, identify in 1-2 sentences what was wrong or missing in the response. Be specific — e.g. "Bot did not address the specific GSTR form asked about" or "Bot gave a generic answer instead of explaining the feature" or "Bot failed to push for a demo after answering."
+
+Customer question: ${customerQuestion || '(not captured)'}
+
+Chatbot response:
+${(botResponse || '').slice(0, 600)}
+
+Write ONLY the issue description. No preamble.`;
+
+    const result = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 100
+    });
+    return result.choices[0]?.message?.content?.trim() || null;
+  } catch(e) {
+    console.error('analyzeWhatWrong error:', e.message);
+    return null;
+  }
+}
 
 // ── Reformulate raw feedback into a clean AI-readable rule ──
 async function reformulateCorrection(customerQuestion, botResponse, rawFeedback) {
@@ -578,9 +614,10 @@ app.post('/api/chat', async (req, res) => {
   const contextMessages = [];
   if (userContext && userContext.name) {
     const firstName = userContext.name.split(' ')[0];
-    const roleDesc = userContext.role === 'CA / Tax Professional'
-      ? 'a CA / Tax Professional who manages compliance for multiple clients (DIFM)'
-      : 'a business owner managing their own company compliance (DIY)';
+    const isCA = userContext.role === 'CA / Tax Professional';
+    const roleDesc = isCA
+      ? 'a CA / Tax Professional who manages compliance for multiple clients'
+      : 'a business owner managing their own company compliance';
     let demoNote = '';
     if (userContext.demoBooked && userContext.bookedDemoDetails) {
       demoNote = ` IMPORTANT: This user has ALREADY BOOKED A DEMO for ${userContext.bookedDemoDetails.date} at ${userContext.bookedDemoDetails.time}. Do NOT output COLLECT_DEMO_INFO or SHOW_DEMO_CARD. Do NOT ask them to fill a demo form. If they ask about their demo status, simply confirm it is booked.`;
@@ -589,9 +626,14 @@ app.post('/api/chat', async (req, res) => {
       role: 'user',
       content: `[System context, do not repeat this to the user: The person I am speaking with is ${userContext.name} (address them as "${firstName}"). They are ${roleDesc}. Their email is ${userContext.email}.${demoNote} Tailor all responses to their profile.]`
     });
+
+    // Inject Q1 as already asked by the bot (matches the frontend welcome message).
+    // The user's first reply is therefore the Q1 answer — go straight to Q2.
     contextMessages.push({
       role: 'assistant',
-      content: `[Understood. I will address this person as ${firstName}, pitch the appropriate angle for their role, and guide them toward a demo.${userContext.demoBooked ? ' Their demo is already booked — I will not trigger COLLECT_DEMO_INFO or SHOW_DEMO_CARD.' : ''}]`
+      content: isCA
+        ? `Hi ${firstName}! Great to connect. I'm from KDK Software's Sales Team. Before I walk you through our solutions, I'd love to understand your practice better. How many clients are you currently handling compliance for?`
+        : `Hi ${firstName}! Great to connect. I'm from KDK Software's Sales Team. Before I walk you through our solutions, I'd love to understand your needs better. Which compliance areas are you currently handling?`
     });
   }
 
@@ -838,6 +880,8 @@ app.post('/api/training-feedback', async (req, res) => {
     return res.status(400).json({ error: 'Suggested correction is required' });
   }
 
+  const wrongResponseDesc = await analyzeWhatWrong(customerQuestion, botResponseGiven);
+
   const entry = {
     id: Date.now(),
     sessionId: sessionId || null,
@@ -845,6 +889,7 @@ app.post('/api/training-feedback', async (req, res) => {
     userRole: userRole || null,
     customerQuestion: customerQuestion || null,
     botResponseGiven: botResponseGiven || null,
+    wrongResponseDesc: wrongResponseDesc || null,
     suggestedCorrection: suggestedCorrection.trim(),
     status: 'pending',
     reviewedBy: null,
@@ -860,7 +905,7 @@ app.post('/api/training-feedback', async (req, res) => {
       `INSERT INTO training_feedback
          (session_id, submitted_by, user_role, customer_question, bot_response_given, wrong_response_desc, suggested_correction)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [sessionId||null, submittedBy||null, userRole||null, customerQuestion||null, botResponseGiven||null, botResponseGiven||null, suggestedCorrection.trim()]
+      [sessionId||null, submittedBy||null, userRole||null, customerQuestion||null, botResponseGiven||null, wrongResponseDesc||null, suggestedCorrection.trim()]
     ).catch(err => console.error('PG feedback save error:', err.message));
   }
 
@@ -912,7 +957,7 @@ app.post('/api/training-feedback/:id/review', async (req, res) => {
       const date = new Date().toISOString().split('T')[0];
       const by   = reviewedBy ? ` | Reviewed by: ${reviewedBy}` : '';
       const q    = entry.customerQuestion ? `\n**Customer asked:** ${entry.customerQuestion}` : '';
-      const b    = entry.botResponseGiven ? `\n**Bot responded:** ${entry.botResponseGiven.slice(0, 400)}` : '';
+      const b    = entry.botResponseGiven ? `\n**Bot responded:** ${entry.botResponseGiven}` : '';
       const line = `\n---\n\n[Correction #${entry.id} | ${date}${by}]${q}${b}\n**AI Rule:**\n${rule}\n`;
       fs.appendFileSync(CORRECTIONS_FILE, line, 'utf-8');
       console.log(`\n✅ Correction #${entry.id} reformulated and written to corrections.md — live immediately.`);
@@ -935,7 +980,7 @@ app.post('/api/training-feedback/:id/review', async (req, res) => {
       const date = new Date().toISOString().split('T')[0];
       const by   = reviewedBy ? ` | Reviewed by: ${reviewedBy}` : '';
       const q    = entry.customer_question  ? `\n**Customer asked:** ${entry.customer_question}` : '';
-      const b    = entry.bot_response_given ? `\n**Bot responded:** ${entry.bot_response_given.slice(0, 400)}` : '';
+      const b    = entry.bot_response_given ? `\n**Bot responded:** ${entry.bot_response_given}` : '';
       const line = `\n---\n\n[Correction #${entry.id} | ${date}${by}]${q}${b}\n**AI Rule:**\n${rule}\n`;
       fs.appendFileSync(CORRECTIONS_FILE, line, 'utf-8');
       console.log(`\n✅ Correction #${entry.id} reformulated and written to corrections.md — live immediately.`);

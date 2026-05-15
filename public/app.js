@@ -288,15 +288,14 @@ function showWelcome() {
   const firstName = userProfile ? userProfile.name.split(' ')[0] : 'there';
   const isCA      = userProfile?.role === 'CA / Tax Professional';
 
+  // Q1 — qualifying question based on known user type
   const welcomeText = isCA
-    ? `Hi ${firstName}! Great to connect. I'm from KDK Software's Sales Team.\n\n` +
-      `We work with thousands of CAs and tax professionals across India, helping them manage compliance for all their clients from a single platform. **Express GST**, **Express TDS**, and **Express ITR** are built specifically for practices like yours.\n\n` +
-      `To help me point you in the right direction, which area are you looking to streamline first?`
-    : `Hi ${firstName}! Great to have you here. I'm from KDK Software's Sales Team.\n\n` +
-      `We help businesses stay on top of their tax compliance, GST, TDS, and income tax, without the stress of deadlines and notices. Everything runs on the cloud, so your team can work from anywhere.\n\n` +
-      `What brings you here today? Are you exploring a specific product or looking for an all-in-one solution?`;
+    ? `Hi ${firstName}! Great to connect. I'm from KDK Software's Sales Team.\n\nBefore I walk you through our solutions, I'd love to understand your practice better. How many clients are you currently handling compliance for?`
+    : `Hi ${firstName}! Great to connect. I'm from KDK Software's Sales Team.\n\nBefore I walk you through our solutions, I'd love to understand your needs better. Which compliance areas are you currently handling?`;
 
-  const quickReplies = ['Express GST', 'Express TDS', 'Express ITR', 'All three products'];
+  const quickReplies = isCA
+    ? ['Up to 50 clients', '50–200 clients', '200+ clients']
+    : ['GST', 'TDS', 'ITR', 'All three'];
 
   appendBotMessage(welcomeText, quickReplies);
 }
@@ -419,33 +418,35 @@ function exitTrainingMode() {
 }
 
 async function handleTrainingMessage(text) {
-  if (trainingStep !== 1) return;
-  try {
-    const res = await fetch('/api/training-feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId:           SESSION_ID,
-        submittedBy:         userProfile?.name || 'Unknown',
-        userRole:            userProfile?.role || '',
-        customerQuestion:    trainingData.customerQuestion || '',
-        botResponseGiven:    trainingData.botResponseGiven || '',
-        suggestedCorrection: text
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      appendTrainingBotMessage('Feedback saved! Admin will review it before it goes live.\n\nType **Kartik_Train@@** to go back to normal chat.');
-    } else {
-      appendTrainingBotMessage('Could not save. Please try again.');
+  if (trainingStep === 1) {
+    // Reviewer provides the correction; server auto-analyzes what was wrong
+    try {
+      const res = await fetch('/api/training-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId:           SESSION_ID,
+          submittedBy:         userProfile?.name || 'Unknown',
+          userRole:            userProfile?.role || '',
+          customerQuestion:    trainingData.customerQuestion || '',
+          botResponseGiven:    trainingData.botResponseGiven || '',
+          suggestedCorrection: text
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        appendTrainingBotMessage('Feedback saved! Admin will review it before it goes live.\n\nType **Kartik_Train@@** to go back to normal chat.');
+      } else {
+        appendTrainingBotMessage('Could not save. Please try again.');
+      }
+    } catch(e) {
+      appendTrainingBotMessage('Connection error. Please try again.');
     }
-  } catch(e) {
-    appendTrainingBotMessage('Connection error. Please try again.');
+    trainingMode = false;
+    trainingStep = 0;
+    trainingData = {};
+    if (trainingBanner) { trainingBanner.remove(); trainingBanner = null; }
   }
-  trainingMode = false;
-  trainingStep = 0;
-  trainingData = {};
-  if (trainingBanner) { trainingBanner.remove(); trainingBanner = null; }
 }
 
 function appendTrainingBotMessage(text) {
