@@ -363,11 +363,6 @@ function buildSystemPrompt(retrievedKB) {
 
 // ── PostgreSQL setup ──
 let pgPool = null;
-console.log('DB config — DATABASE_URL set:', !!process.env.DATABASE_URL, '| DB_HOST:', process.env.DB_HOST || 'not set');
-if (process.env.DATABASE_URL) {
-  const u = new URL(process.env.DATABASE_URL);
-  console.log('Using DATABASE_URL — host:', u.hostname, '| user:', u.username, '| port:', u.port);
-}
 if (process.env.DATABASE_URL || process.env.DB_HOST) {
   pgPool = new Pool(
     process.env.DATABASE_URL
