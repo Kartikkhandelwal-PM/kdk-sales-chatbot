@@ -18,7 +18,7 @@ if (!process.env.OPENAI_API_KEY) {
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ── Load knowledge base ──
-const KB_DIR          = path.join(__dirname, '..', 'Knowledge Base Files');
+const KB_DIR          = path.join(__dirname, 'kb');
 const CORRECTIONS_FILE = path.join(KB_DIR, 'corrections.md');
 let salesKB = '';
 
