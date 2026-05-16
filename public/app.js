@@ -205,9 +205,8 @@ async function submitPrechat() {
   document.getElementById('user-role-label').textContent =
     role === 'CA / Tax Professional' ? 'CA / Tax Professional' : 'Business';
 
-  // Show empty state, then welcome after delay
+  // Show the product/demo cards — they stay until the user clicks one or types
   showEmptyState();
-  setTimeout(() => showWelcome(), 300);
 }
 
 // ─────────────────────────────────────────────
@@ -359,6 +358,10 @@ async function handleUserMessage(text) {
     }
     return;
   }
+  // If demo card was shown but user kept chatting without submitting, reset the flag
+  // so the card can reappear when the AI next suggests it.
+  if (!demoBooked) demoFormActive = false;
+
   messages.push({ role: 'user', content: text });
   await streamBotReply();
 }
@@ -548,23 +551,30 @@ async function streamBotReply() {
 
     const parsedReply = parseTokens(accumulated);
     const clean = cleanResponseText(parsedReply.text);
-    const { quickReplies, collectDemoInfo, escalateToHuman, offerCallback } = parsedReply;
+    const { quickReplies, collectDemoInfo, showDemoCard, escalateToHuman, offerCallback, productTabs } = parsedReply;
     contentEl.innerHTML = renderMarkdown(clean);
     messages.push({ role: 'assistant', content: clean });
     speakText(clean);
 
     if (escalateToHuman) {
       setTimeout(showEscalationCard, 350);
-    } else if (collectDemoInfo && demoBooked && bookedDemoDetails) {
+    } else if ((collectDemoInfo || showDemoCard) && demoBooked && bookedDemoDetails) {
       setTimeout(() => appendBotMessage(
         `Just a reminder — your demo is already confirmed for ${escapeHtml(bookedDemoDetails.date)} at ${escapeHtml(bookedDemoDetails.time)}. Our team will reach out to you.`,
         ['Change date/time', 'What will be covered?', 'Something else']
       ), 350);
-    } else if (collectDemoInfo && !demoFormActive) {
+    } else if (collectDemoInfo) {
+      // Explicit user agreement — always show the form, even if it was shown proactively before
+      demoFormActive = true;
+      setTimeout(showDemoForm, 350);
+    } else if (showDemoCard && !demoFormActive) {
+      // Proactive — only show once per session
       demoFormActive = true;
       setTimeout(showDemoForm, 350);
     } else if (offerCallback) {
       setTimeout(showCallbackCard, 350);
+    } else if (productTabs) {
+      setTimeout(() => showProductTabs(productTabs), 350);
     } else if (quickReplies.length > 0) {
       wrapper.appendChild(buildQuickReplies(quickReplies));
     }
@@ -767,6 +777,9 @@ function resetChat() {
 // DEMO FORM
 // ─────────────────────────────────────────────
 function showDemoForm(isUpdate = false) {
+  // Remove any previous unfilled demo card — prevents duplicate IDs that break submitDemo
+  messagesArea.querySelectorAll('[data-demo-card="true"]').forEach(c => c.remove());
+
   const prefillName  = escapeHtml(userProfile?.name  || '');
   const prefillEmail = escapeHtml(userProfile?.email || '');
   const today = new Date().toISOString().split('T')[0];
@@ -822,8 +835,61 @@ function showDemoForm(isUpdate = false) {
         <p class="card-privacy">🔒 Your info is private. Our team will reach out personally.</p>
       </div>
     </div>`;
+  wrapper.dataset.demoCard = 'true';
   messagesArea.appendChild(wrapper);
   scrollToBottom();
+}
+
+function dismissDemoCard(e) {
+  e.preventDefault();
+  demoFormActive = false;
+  const card = messagesArea.querySelector('[data-demo-card="true"]');
+  if (card) card.style.opacity = '0.4';
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT TABS CARD
+// ─────────────────────────────────────────────
+function showProductTabs(tabsData) {
+  if (!Array.isArray(tabsData) || tabsData.length === 0) return;
+  const uid = Math.random().toString(36).slice(2, 8);
+
+  const nav = tabsData.map((tab, i) =>
+    `<button class="product-tab-btn${i === 0 ? ' active' : ''}" data-tab="${uid}-${i}" onclick="switchProductTab(this)">${escapeHtml(tab.product)}</button>`
+  ).join('');
+
+  const panels = tabsData.map((tab, i) => {
+    const items = (tab.items || []).map(item => `<li>${escapeHtml(item)}</li>`).join('');
+    return `<div class="product-tab-panel${i === 0 ? ' active' : ''}" data-panel="${uid}-${i}"><ul>${items}</ul></div>`;
+  }).join('');
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'card-msg';
+  wrapper.innerHTML = `
+    <div class="inline-card">
+      <div class="inline-card-head" style="background:linear-gradient(135deg,#1B4FD8,#0EA5E9);">
+        <div class="card-head-title">
+          <div class="card-mini-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+          </div>
+          Client Import Methods
+        </div>
+        <div class="card-head-sub">Tap a product to see its import options</div>
+      </div>
+      <div class="product-tabs-nav">${nav}</div>
+      <div class="product-tabs-body">${panels}</div>
+    </div>`;
+  messagesArea.appendChild(wrapper);
+  scrollToBottom();
+}
+
+function switchProductTab(btn) {
+  const card = btn.closest('.inline-card');
+  const tabId = btn.dataset.tab;
+  card.querySelectorAll('.product-tab-btn').forEach(b => b.classList.remove('active'));
+  card.querySelectorAll('.product-tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  card.querySelector(`[data-panel="${tabId}"]`).classList.add('active');
 }
 
 function selectTimeSlot(el, timeValue) {
@@ -1122,6 +1188,7 @@ function parseTokens(text) {
   let collectDemoInfo = false;
   let escalateToHuman = false;
   let offerCallback   = false;
+  let productTabs     = null;
 
   const qrMatch = text.match(/QUICK_REPLIES:\[([^\]]+)\]/s);
   if (qrMatch) {
@@ -1136,9 +1203,26 @@ function parseTokens(text) {
     text = text.replace(/QUICK_REPLIES:\[[^\]]*\]/gs, '').trim();
   }
 
-  if (text.includes('COLLECT_DEMO_INFO:true') || text.includes('SHOW_DEMO_CARD:true')) {
+  // PRODUCT_TABS token — matches PRODUCT_TABS:[...] including multiline JSON
+  const ptMatch = text.match(/PRODUCT_TABS:(\[[\s\S]*?\](?=\s*(?:$|\n|Want|Shall|A demo)))/);
+  if (ptMatch) {
+    try {
+      productTabs = JSON.parse(ptMatch[1]);
+    } catch(e) {
+      console.warn('PRODUCT_TABS parse error:', e);
+    }
+    text = text.replace(/PRODUCT_TABS:\[[\s\S]*?\]/, '').trim();
+  }
+
+  if (text.includes('COLLECT_DEMO_INFO:true')) {
     collectDemoInfo = true;
-    text = text.replace(/COLLECT_DEMO_INFO:true/g, '').replace(/SHOW_DEMO_CARD:true/g, '').trim();
+    text = text.replace(/COLLECT_DEMO_INFO:true/g, '').trim();
+  }
+  // showDemoCard is proactive — only show once; collectDemoInfo is explicit agreement — always show
+  let showDemoCard = false;
+  if (text.includes('SHOW_DEMO_CARD:true')) {
+    showDemoCard = true;
+    text = text.replace(/SHOW_DEMO_CARD:true/g, '').trim();
   }
 
   if (text.includes('ESCALATE_TO_HUMAN:true')) {
@@ -1151,7 +1235,7 @@ function parseTokens(text) {
     text = text.replace(/OFFER_CALLBACK:true/g, '').trim();
   }
 
-  return { text, quickReplies, collectDemoInfo, escalateToHuman, offerCallback };
+  return { text, quickReplies, collectDemoInfo, showDemoCard, escalateToHuman, offerCallback, productTabs };
 }
 
 function cleanResponseText(text) {
@@ -1161,12 +1245,21 @@ function cleanResponseText(text) {
     .replace(/\s+,/g, ',')
     .replace(/,\s*,+/g, ', ')
     .replace(/[ \t]{2,}/g, ' ')
+    // Strip any sentence that mentions the booking card/form — the bot should never narrate UI actions.
+    // Match whole sentences containing the key phrases so apostrophe/quote variants don't matter.
+    .replace(/[^.!?\n]*\bdemo\s+booking\s+card\b[^.!?\n]*[.!?]?\s*/gi, '')
+    .replace(/[^.!?\n]*\bbooking\s+card\b[^.!?\n]*[.!?]?\s*/gi, '')
+    .replace(/[^.!?\n]*\bbooking\s+form\b[^.!?\n]*[.!?]?\s*/gi, '')
+    .replace(/[^.!?\n]*\bfill\s+in\s+your\s+details\b[^.!?\n]*[.!?]?\s*/gi, '')
+    .replace(/[^.!?\n]*\bfill\s+in\s+the\s+details\b[^.!?\n]*[.!?]?\s*/gi, '')
+    .replace(/[^.!?\n]*\bschedule\s+the\s+demo\b[^.!?\n]*[.!?]?\s*/gi, '')
     .trim();
 }
 
 function stripTokens(text) {
   return cleanResponseText(text
     .replace(/QUICK_REPLIES:\[[^\]]*\]?/gs, '')
+    .replace(/PRODUCT_TABS:\[[\s\S]*?\]/g, '')
     .replace(/COLLECT_DEMO_INFO:true/g, '')
     .replace(/SHOW_DEMO_CARD:true/g, '')
     .replace(/ESCALATE_TO_HUMAN:true/g, '')

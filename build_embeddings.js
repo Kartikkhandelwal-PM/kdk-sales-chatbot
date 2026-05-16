@@ -17,7 +17,7 @@ if (!process.env.OPENAI_API_KEY) {
 }
 
 const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const KB_DIR   = path.join(__dirname, '..', 'Knowledge Base Files');
+const KB_DIR   = path.join(__dirname, 'kb');
 const OUT_FILE = path.join(__dirname, 'embeddings.json');
 
 function parseArticles(text, product) {

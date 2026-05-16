@@ -692,6 +692,33 @@
     .card-field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(27,79,216,.08); background: #fff; }
     .card-field input::placeholder { color: var(--ghost); }
 
+    /* ─── PRODUCT TABS CARD ─── */
+    .product-tabs-nav {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 12px 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .product-tab-btn {
+      padding: 5px 13px; border-radius: 99px;
+      border: 1.5px solid var(--border);
+      background: #fff; color: var(--muted);
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      transition: all .15s; white-space: nowrap; line-height: 1.4;
+    }
+    .product-tab-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .product-tab-btn.active {
+      border-color: var(--primary); background: var(--primary);
+      color: #fff; box-shadow: 0 2px 8px rgba(27,79,216,.22);
+    }
+    .product-tabs-body { padding: 0; }
+    .product-tab-panel { display: none; padding: 10px 14px 14px; }
+    .product-tab-panel.active { display: block; }
+    .product-tab-panel ul { margin: 0; padding: 0 0 0 14px; }
+    .product-tab-panel li {
+      font-size: 12.5px; color: var(--text);
+      margin-bottom: 6px; line-height: 1.45;
+    }
+    .product-tab-panel li:last-child { margin-bottom: 0; }
+
     /* Time slot pills */
     .time-slots { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
     .time-slot {

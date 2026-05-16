@@ -16,3 +16,9 @@ feedback.json
 # Server logs
 server_out.txt
 server_err.txt
+
+# Claude Code internal memory — not part of the project
+.claude/
+
+# Old app folder (development copy)
+Sales Chatbot/
