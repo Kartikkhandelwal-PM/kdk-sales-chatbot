@@ -276,9 +276,47 @@
     }
     .toast.green { background: #059669; }
     .toast.red   { background: #DC2626; }
+
+    /* ── Login overlay ── */
+    #login-overlay {
+      position: fixed; inset: 0; background: #0F172A;
+      display: flex; align-items: center; justify-content: center; z-index: 10000;
+    }
+    .login-box {
+      background: #1E293B; border: 1px solid #334155; border-radius: 16px;
+      padding: 36px 40px; width: 380px; text-align: center;
+    }
+    .login-logo  { font-size: 22px; font-weight: 800; color: #38BDF8; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .login-title { font-size: 14px; color: #64748B; margin-bottom: 28px; }
+    .login-input {
+      width: 100%; padding: 11px 14px; border-radius: 8px;
+      border: 1.5px solid #334155; background: #0F172A; color: white;
+      font-size: 14px; outline: none; margin-bottom: 14px;
+      font-family: monospace; letter-spacing: 1px;
+    }
+    .login-input:focus { border-color: #38BDF8; }
+    .login-btn {
+      width: 100%; padding: 11px; border-radius: 8px; border: none;
+      background: #38BDF8; color: #0F172A; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .login-btn:hover { background: #7DD3FC; }
+    .login-error { color: #F87171; font-size: 12px; margin-top: 10px; min-height: 18px; }
   </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">KDK Admin</div>
+    <div class="login-title">Enter your admin token to continue</div>
+    <input id="token-input" class="login-input" type="password" placeholder="Admin token" autocomplete="off"
+           onkeydown="if(event.key==='Enter') doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Access Dashboard</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -346,6 +384,39 @@
 <script>
 let correctionFilter = 'pending';
 let activeSessionId  = null;
+let adminToken       = '';
+
+// ─────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────
+function doLogin() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val) { document.getElementById('login-error').textContent = 'Please enter your admin token.'; return; }
+  adminToken = val;
+  sessionStorage.setItem('adminToken', val);
+  // Verify token by hitting a protected route
+  fetch('/api/sessions', { headers: { 'x-admin-token': val } })
+    .then(res => {
+      if (res.status === 403) {
+        adminToken = '';
+        sessionStorage.removeItem('adminToken');
+        document.getElementById('login-error').textContent = 'Invalid token. Please try again.';
+      } else {
+        document.getElementById('login-overlay').style.display = 'none';
+        init();
+      }
+    }).catch(() => {
+      document.getElementById('login-error').textContent = 'Could not connect to server.';
+    });
+}
+
+// Wrapper for all API calls — attaches admin token header
+async function apiFetch(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (adminToken) headers['x-admin-token'] = adminToken;
+  const res = await fetch(url, { ...options, headers });
+  return res.json();
+}
 
 // ─────────────────────────────────────────────
 // INIT
@@ -363,10 +434,10 @@ async function init() {
 async function loadStats() {
   try {
     const [sessR, leadsR, demosR, feedR] = await Promise.all([
-      fetch('/api/sessions').then(r => r.json()).catch(() => ({ count: 0 })),
-      fetch('/api/leads').then(r => r.json()).catch(() => []),
-      fetch('/api/demos').then(r => r.json()).catch(() => []),
-      fetch('/api/training-feedback?status=pending').then(r => r.json()).catch(() => ({ count: 0 }))
+      apiFetch('/api/sessions').catch(() => ({ count: 0 })),
+      apiFetch('/api/leads').catch(() => []),
+      apiFetch('/api/demos').catch(() => []),
+      apiFetch('/api/training-feedback?status=pending').catch(() => ({ count: 0 }))
     ]);
     document.getElementById('stat-sessions').textContent = `${sessR.count ?? 0} Sessions`;
     document.getElementById('stat-leads').textContent    = `${Array.isArray(leadsR) ? leadsR.length : 0} Leads`;
@@ -394,7 +465,7 @@ function switchTab(tab, btn) {
 async function loadSessions() {
   const list = document.getElementById('session-list');
   try {
-    const data = await fetch('/api/sessions').then(r => r.json());
+    const data = await apiFetch('/api/sessions');
     const sessions = data.sessions || [];
     if (!sessions.length) {
       list.innerHTML = header(0) + '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-msg">No conversations yet.<br>Start chatting to see sessions here.</div></div>';
@@ -449,7 +520,7 @@ async function showChatThread(id) {
   const pane = document.getElementById('chat-pane');
   pane.innerHTML = '<div class="chat-empty"><div class="chat-empty-icon">⏳</div><div>Loading chat...</div></div>';
   try {
-    const sess = await fetch(`/api/sessions/${encodeURIComponent(id)}`).then(r => r.json());
+    const sess = await apiFetch(`/api/sessions/${encodeURIComponent(id)}`);
     if (sess.error) throw new Error(sess.error);
 
     const isCA     = (sess.user?.role || '').includes('CA');
@@ -520,8 +591,8 @@ async function loadLeads() {
   pane.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>';
   try {
     const [leadsData, demosData] = await Promise.all([
-      fetch('/api/leads').then(r => r.json()),
-      fetch('/api/demos').then(r => r.json())
+      apiFetch('/api/leads'),
+      apiFetch('/api/demos')
     ]);
     const leads = Array.isArray(leadsData) ? leadsData : [];
     const demos = Array.isArray(demosData) ? demosData : [];
@@ -586,7 +657,7 @@ async function loadCorrections() {
   list.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-msg">Loading...</div></div>';
   const url = correctionFilter ? `/api/training-feedback?status=${correctionFilter}` : '/api/training-feedback';
   try {
-    const data  = await fetch(url).then(r => r.json());
+    const data  = await apiFetch(url);
     const items = data.feedback || [];
     if (!items.length) {
       list.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-msg">No corrections here.</div></div>';
@@ -665,12 +736,10 @@ async function review(id, status, btn) {
   const footer = btn.closest('.corr-footer');
   footer.querySelectorAll('button').forEach(b => b.disabled = true);
   try {
-    const res  = await fetch(`/api/training-feedback/${id}/review`, {
+    const data = await apiFetch(`/api/training-feedback/${id}/review`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, reviewedBy: 'Kartik' })
     });
-    const data = await res.json();
     if (data.success) {
       showToast(status === 'approved' ? '✓ Approved — correction is now live!' : '✗ Rejected', status === 'approved' ? 'green' : 'red');
       setTimeout(() => { loadCorrections(); loadStats(); }, 700);
@@ -726,7 +795,14 @@ function showToast(msg, type = '') {
   setTimeout(() => t.remove(), 3200);
 }
 
-init();
+// Auto-login from sessionStorage if token was saved
+const savedToken = sessionStorage.getItem('adminToken');
+if (savedToken) {
+  document.getElementById('token-input').value = savedToken;
+  doLogin();
+} else {
+  document.getElementById('token-input').focus();
+}
 </script>
 </body>
 </html>
