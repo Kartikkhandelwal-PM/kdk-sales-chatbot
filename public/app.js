@@ -486,7 +486,7 @@ async function streamBotReply() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages,
+        messages: messages.slice(-20),
         userContext: userProfile
           ? { ...userProfile, demoBooked: demoBooked || false, bookedDemoDetails: bookedDemoDetails || null }
           : null,

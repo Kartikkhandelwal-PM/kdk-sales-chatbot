@@ -700,7 +700,7 @@ if (process.env.DATABASE_URL || process.env.DB_HOST) {
           database: process.env.DB_NAME     || 'postgres',
           user:     process.env.DB_USER     || 'postgres',
           password: process.env.DB_PASSWORD || '',
-          ssl: { rejectUnauthorized: false },
+          ssl: process.env.DB_HOST === 'localhost' || process.env.DB_HOST === '127.0.0.1' ? false : { rejectUnauthorized: false },
         }
   );
   pgPool.query(`CREATE TABLE IF NOT EXISTS chat_logs (
@@ -768,7 +768,8 @@ if (process.env.DATABASE_URL || process.env.DB_HOST) {
 }
 
 async function saveLog({ sessionId, userContext, userMessage, botResponse }) {
-  if (!pgPool) return;
+  if (!pgPool) { console.warn('saveLog: pgPool is null — skipping'); return; }
+  console.log('💬 saveLog called | session:', sessionId, '| user:', userContext?.name || 'unknown');
   try {
     await pgPool.query(
       `INSERT INTO chat_logs (session_id, user_name, user_email, user_role, user_message, bot_response)
@@ -782,8 +783,9 @@ async function saveLog({ sessionId, userContext, userMessage, botResponse }) {
         botResponse
       ]
     );
+    console.log('✅ saveLog: insert OK | session:', sessionId);
   } catch(err) {
-    console.error('Log save error:', err.message);
+    console.error('❌ Log save error:', err.message);
   }
 }
 
