@@ -184,12 +184,26 @@ function detectUserProductSelection(messages) {
 // Detect which product a specific question belongs to, independent of user's overall selection.
 // Used when user chose 'ALL' to avoid hallucinating cross-product answers for product-specific questions.
 // Returns 'GST', 'TDS', 'ITR', or null (generic / applies to all).
+// IMPORTANT: Only use unambiguous product-specific terms. Cross-product terms (Form 16, 26AS, challan)
+// must be handled with context — wrong product → wrong KB boost → hallucinated answers.
 function detectQuestionProduct(question) {
+  // GST-only: GSTR forms, GSTIN, e-invoice, e-way bill, 2A/2B reconciliation
   const isGST = /gstr[-\s]?\d|gstin|\be[-\s]?invoic|\be[-\s]?way[\s-]?bill|\bewb\b|gst\s+portal|\b2a\b|\b2b\b|gst\s+reconcil/i.test(question);
-  const isTDS = /\btraces\b|form[-\s]?16\b|\b26q\b|\b24q\b|\b27q\b|\b27eq\b|\bfvu\b|\btan\b|deductee|deductor|tds.{0,20}(return|certif|filing|challan)/i.test(question);
-  const isITR = /\bitr[-\s]?[1-7]\b|\bais\b|\b26as\b|tax\s+audit|e[-\s]?verif|income\s+tax\s+return|itr\s+filing/i.test(question);
+
+  // TDS-only: TRACES, TDS-specific forms, FVU, TAN, deductee/deductor
+  // Form 16 is cross-product: "generate/download/request form 16" = TDS, "import form 16" = ITR
+  // Challan is TDS-only in KB (all challan articles are ExpressTDS)
+  const isTDS = /\btraces\b|\b26q\b|\b24q\b|\b27q\b|\b27eq\b|\bfvu\b|\btan\b|deductee|deductor|tds\s+(return|certif|filing)|tds\s+challan|challan.{0,20}(map|verif|delet|updat|unconsum)/i.test(question)
+    || /form[-\s]?16.{0,30}(certif|generat|issu|download|request|email|mail|form\s*12)/i.test(question);
+
+  // ITR-only: ITR form numbers, AIS, tax audit, e-verification
+  // "import form 16" is ITR — it imports Form 16 data into the ITR return
+  // 26AS is ITR-only in the KB (ExpressITR || Download AIS/26AS PDF File)
+  const isITR = /\bitr[-\s]?[1-7]\b|\bais\b|\b26as\b|tax\s+audit|e[-\s]?verif(ication)?|itr\s+filing/i.test(question)
+    || /form[-\s]?16.{0,20}import|import.{0,20}form[-\s]?16/i.test(question);
+
   const count = [isGST, isTDS, isITR].filter(Boolean).length;
-  if (count !== 1) return null; // ambiguous, generic, or multi-product question
+  if (count !== 1) return null; // ambiguous, generic, or cross-product — let bot ask for clarification
   if (isGST) return 'GST';
   if (isTDS) return 'TDS';
   return 'ITR';
@@ -695,7 +709,7 @@ function buildSystemPrompt(retrievedKB, skipKB = false) {
   } else if (retrievedKB) {
     kbSection = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## RELEVANT PRODUCT KB ARTICLES\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nUse ONLY these for step-by-step guidance. Do NOT invent steps not shown here.\n\n${retrievedKB}`;
   } else {
-    kbSection = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## SALES KNOWLEDGE BASE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${salesKB}\n\n[No specific KB articles retrieved. Use the Sales KB above for features and competitor handling. Do not invent step-by-step navigation. Drive toward a demo.]`;
+    kbSection = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n## SALES KNOWLEDGE BASE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${salesKB}\n\n[No specific KB article was found for this question. CRITICAL: Do NOT invent steps, navigation paths, menu names, or feature behaviour. If the user asked a how-to question, respond with RULE 4: "Our team can walk you through this directly — best seen live. Want a quick 20-min demo?" Use the Sales KB above only for high-level features and competitor handling.]`;
   }
 
   reloadCorrections();
