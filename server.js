@@ -953,7 +953,7 @@ app.post('/api/chat', async (req, res) => {
       if (qProduct) {
         productNote = ` The user needs ALL THREE products, but their current question is specifically about Express ${qProduct}. Answer for Express ${qProduct} ONLY — do not mention the other products unless directly relevant.`;
       } else {
-        productNote = ` The user needs ALL THREE products (Express GST + Express TDS + Express ITR). This is a generic question that applies to all three — cover all three in your answer. Use PRODUCT_TABS when listing features per product. NEVER default to only Express GST.`;
+        productNote = ` The user has confirmed they need ALL THREE products (Express GST + Express TDS + Express ITR). If the qualifying questions (client count, challenge) are not yet complete, continue the qualifying flow — do NOT skip ahead to product pitching. Once qualifying is complete, answer questions for all three products and NEVER default to only Express GST.`;
       }
     } else {
       productNote = ' The product this user needs has NOT been confirmed yet in this conversation. If they ask a product-specific question (import clients, migrate, file returns, reconcile, Form 16, TDS certificate, add TAN/GSTIN, client master), DO NOT assume a product — ask which product they mean in one line and end with QUICK_REPLIES:["Express GST","Express TDS","Express ITR","All three"].';
