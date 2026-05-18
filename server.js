@@ -162,13 +162,13 @@ function titleBoost(rawQuery, title) {
   return 0;
 }
 
-// Detect which product the user is focused on from the conversation history.
-// Returns 'GST', 'TDS', 'ITR', or null (unknown/mixed).
+// Detect which product(s) the user has selected from conversation history.
+// Returns 'GST', 'TDS', 'ITR', 'ALL' (user explicitly wants all three), or null (not yet known).
 // Only scans USER messages — bot's Q2 always mentions all three, which creates false ties.
-function detectProductContext(messages) {
+function detectUserProductSelection(messages) {
   const userText = messages.filter(m => m.role === 'user').map(m => m.content || '').join(' ');
-  // Explicit multi-product signals → null (covers "all", "all three", "a mix", "all my clients")
-  if (/\ball\b|\ba mix\b|\ball three\b/i.test(userText)) return null;
+  // Explicit multi-product signals → 'ALL'
+  if (/\ball\b|\ba mix\b|\ball three\b/i.test(userText)) return 'ALL';
   const gst = (userText.match(/\bgst\b/gi) || []).length;
   const tds = (userText.match(/\btds\b/gi) || []).length;
   const itr = (userText.match(/\bitr\b/gi) || []).length;
@@ -179,6 +179,20 @@ function detectProductContext(messages) {
   if (tds === max && tds > gst && tds > itr) return 'TDS';
   if (itr === max && itr > gst && itr > tds) return 'ITR';
   return null;
+}
+
+// Detect which product a specific question belongs to, independent of user's overall selection.
+// Used when user chose 'ALL' to avoid hallucinating cross-product answers for product-specific questions.
+// Returns 'GST', 'TDS', 'ITR', or null (generic / applies to all).
+function detectQuestionProduct(question) {
+  const isGST = /gstr[-\s]?\d|gstin|\be[-\s]?invoic|\be[-\s]?way[\s-]?bill|\bewb\b|gst\s+portal|\b2a\b|\b2b\b|gst\s+reconcil/i.test(question);
+  const isTDS = /\btraces\b|form[-\s]?16\b|\b26q\b|\b24q\b|\b27q\b|\b27eq\b|\bfvu\b|\btan\b|deductee|deductor|tds.{0,20}(return|certif|filing|challan)/i.test(question);
+  const isITR = /\bitr[-\s]?[1-7]\b|\bais\b|\b26as\b|tax\s+audit|e[-\s]?verif|income\s+tax\s+return|itr\s+filing/i.test(question);
+  const count = [isGST, isTDS, isITR].filter(Boolean).length;
+  if (count !== 1) return null; // ambiguous, generic, or multi-product question
+  if (isGST) return 'GST';
+  if (isTDS) return 'TDS';
+  return 'ITR';
 }
 
 function retrieveByEmbedding(queryEmbedding, rawQuery = '', maxChars = 4000, productFilter = null) {
@@ -418,6 +432,10 @@ IMPORTANT: Track A has only 3 questions. Do NOT ask about GSTINs, TAN count, or 
 
 IMPORTANT: If the user has already said "All three", "all", or named multiple products at ANY point in the conversation (including when answering a product-specific question), that counts as the answer to Q2. Do NOT ask Q2 again. Move straight to Q3.
 
+IMPORTANT: When the user opens the conversation by selecting all three products (says "I want to know about all three products" or "Express GST, Express TDS, and Express ITR"), respond with genuine warmth and enthusiasm before asking Q1:
+Example: "That's the full compliance suite — managing GST, TDS, and ITR together is serious work, and you're in the right place! Let me ask a couple of quick questions so I can show you exactly how everything fits your setup."
+A prospect interested in all three is high-value. Match that with real energy — curious, warm, a little excited. Never list the products robotically.
+
 Once complete, pitch: bulk client management, auto client emails, single-screen notice dashboard, serve more clients without adding staff.
 
 ──────────────────────────────
@@ -535,7 +553,7 @@ Always scan the full conversation history before replying. The history is ground
 - CALLBACK ALREADY ARRANGED: If the history shows a callback was already requested, do not trigger OFFER_CALLBACK again. Acknowledge it.
 - ESCALATION ALREADY RAISED: If the history shows the user was already escalated to a human, do not re-escalate. Acknowledge the existing request.
 - USER DETAILS ALREADY KNOWN: Name, email, and role were collected before this conversation started. Never ask for them again.
-- PRODUCT CONTEXT: If the user has already told you which product they need (e.g., said "GST" during qualifying), ALL subsequent answers must refer to that product (Express GST). Never respond with a different product (e.g., Express ITR or Express TDS) unless the user explicitly asks about it.
+- PRODUCT CONTEXT: If the user confirmed a single product, ALL answers must reference only that product. If the user confirmed ALL THREE products, the system context will tell you whether the current question belongs to one specific product or all three — follow that instruction exactly. NEVER default to Express GST when the user chose all three.
 - NEVER APOLOGISE for confusion you did not cause. If the booking or action is clearly in the history, be confident. Do not say "I apologise for the error in my previous message" when no error was made.
 - BE CONSISTENT: If you said something in an earlier message, stay consistent with it unless the user has explicitly changed the situation.
 - NEVER second-guess the history: If the last assistant message confirmed a demo, that demo is confirmed. Do not contradict it.
@@ -553,7 +571,7 @@ Always scan the full conversation history before replying. The history is ground
 - Never use the terms "DIFM", "DIY", "Do It For Me", or "Do It Yourself" in any response. These are internal labels only. Speak naturally: say "managing filings for multiple clients" or "handling your own compliance" instead.
 - NEVER list all products generically when a user asks "what do you offer" or "tell me about your products." Ask the next qualifying question instead.
 - NEVER block or redirect a specific feature question. Always answer it, then continue qualifying.
-- PRODUCT NAME: The system context message at the top of this conversation tells you exactly which product (Express GST / TDS / ITR) is relevant. Use that product name in every answer. If a KB article mentions a different product, ignore that product name — use the one from the system context.
+- PRODUCT NAME: The system context message tells you exactly which product(s) are relevant for this answer. When a single product is specified, use only that name. When it says the current question is about one product even though the user chose all three, answer for that one product only — do not force-mention the others. When it says cover all three, use PRODUCT_TABS or cover all three concisely.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## HOW TO ANSWER QUESTIONS
@@ -919,7 +937,7 @@ app.post('/api/chat', async (req, res) => {
     const lastMsgForDetect = messages[messages.length - 1]?.content || '';
     const VAGUE_DETECT = /^(yes|no|ok|okay|sure|right|yep|yeah|please|go ahead|tell me|show me|more|great|perfect|alright|got it|steps|how|proceed)\b.{0,40}$/i;
     const isVagueEarly = lastMsgForDetect.length <= 40 && VAGUE_DETECT.test(lastMsgForDetect.trim());
-    let detectedProduct = detectProductContext(messages);
+    let detectedProduct = detectUserProductSelection(messages);
     if (isVagueEarly) {
       const lastBotMsgEarly = messages.slice().reverse().find(m => m.role === 'assistant')?.content || '';
       const allMentionsEarly = [...lastBotMsgEarly.matchAll(/Express\s+(GST|TDS|ITR)/gi)];
@@ -927,9 +945,19 @@ app.post('/api/chat', async (req, res) => {
         detectedProduct = allMentionsEarly[allMentionsEarly.length - 1][1].toUpperCase();
       }
     }
-    const productNote = detectedProduct
-      ? ` THIS CONVERSATION IS ABOUT Express ${detectedProduct}. Every product answer MUST say "Express ${detectedProduct}" — never Express GST, Express TDS, or Express ITR unless that matches the detected product.`
-      : ' The product this user needs has NOT been confirmed yet in this conversation. If they ask a product-specific question (import clients, migrate, file returns, reconcile, Form 16, TDS certificate, add TAN/GSTIN, client master), DO NOT assume a product — ask which product they mean in one line and end with QUICK_REPLIES:["Express GST","Express TDS","Express ITR","All three"].';
+    let productNote;
+    if (detectedProduct && detectedProduct !== 'ALL') {
+      productNote = ` THIS CONVERSATION IS ABOUT Express ${detectedProduct}. Every product answer MUST say "Express ${detectedProduct}" — never Express GST, Express TDS, or Express ITR unless that matches the detected product.`;
+    } else if (detectedProduct === 'ALL') {
+      const qProduct = detectQuestionProduct(lastMsgForDetect);
+      if (qProduct) {
+        productNote = ` The user needs ALL THREE products, but their current question is specifically about Express ${qProduct}. Answer for Express ${qProduct} ONLY — do not mention the other products unless directly relevant.`;
+      } else {
+        productNote = ` The user needs ALL THREE products (Express GST + Express TDS + Express ITR). This is a generic question that applies to all three — cover all three in your answer. Use PRODUCT_TABS when listing features per product. NEVER default to only Express GST.`;
+      }
+    } else {
+      productNote = ' The product this user needs has NOT been confirmed yet in this conversation. If they ask a product-specific question (import clients, migrate, file returns, reconcile, Form 16, TDS certificate, add TAN/GSTIN, client master), DO NOT assume a product — ask which product they mean in one line and end with QUICK_REPLIES:["Express GST","Express TDS","Express ITR","All three"].';
+    }
 
     contextMessages.push({
       role: 'user',
@@ -995,14 +1023,22 @@ app.post('/api/chat', async (req, res) => {
     // Detect product — if last reply is vague, check bot's last message for a cross-product redirect.
     // Use the LAST "Express X" mentioned in the bot's message: bots end with the recommended product
     // (e.g., "...not applicable in GST. For Express ITR, you can..." → last mention = ITR → use ITR).
-    let productContext = detectProductContext(messages);
+    let userSelection = detectUserProductSelection(messages);
     if (isVague) {
       const lastBotMsg = messages.slice().reverse().find(m => m.role === 'assistant')?.content || '';
       const allMentions = [...lastBotMsg.matchAll(/Express\s+(GST|TDS|ITR)/gi)];
       if (allMentions.length > 0) {
         const lastMentioned = allMentions[allMentions.length - 1][1].toUpperCase();
-        productContext = lastMentioned; // trust the product the bot recommended at the end of its message
+        userSelection = lastMentioned; // trust the product the bot recommended at the end of its message
       }
+    }
+    // When user chose ALL THREE, check if the current question is product-specific.
+    // If yes, boost only that product's KB articles. If generic, null = pick best from all 3.
+    let productContext;
+    if (userSelection === 'ALL') {
+      productContext = detectQuestionProduct(lastUserMsg) || null;
+    } else {
+      productContext = userSelection;
     }
 
     // Retrieve relevant KB articles — hybrid retrieval (embedding + keyword combined)

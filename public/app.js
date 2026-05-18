@@ -255,6 +255,16 @@ function showEmptyState() {
         </div>
         <span class="sc-arrow">›</span>
       </button>
+      <button class="suggestion-card sc-all" onclick="handleUserMessage('I want to know about all three products — Express GST, Express TDS, and Express ITR')">
+        <div class="sc-icon-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="9" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="9" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="2" y="13" width="9" height="8" rx="2" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="9" height="8" rx="2" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+        <div class="sc-text">
+          <div class="sc-label">All Three Products</div>
+          <div class="sc-desc">GST + TDS + ITR complete suite</div>
+        </div>
+        <span class="sc-arrow">›</span>
+      </button>
       <button class="suggestion-card sc-cal" onclick="handleUserMessage('I want to book a free demo')">
         <div class="sc-icon-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
